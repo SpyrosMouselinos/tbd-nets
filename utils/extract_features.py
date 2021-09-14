@@ -20,7 +20,9 @@
 
 import torch
 import numpy as np
-from scipy.misc import imread, imresize
+from skimage.io import imread
+from skimage.transform import resize as imresize
+from skimage.color import rgba2rgb
 from torchvision.models import resnet101
 
 def load_feature_extractor(model_stage=2):
@@ -69,14 +71,22 @@ def extract_image_feats(img_path, model):
     """
     # read in the image and transform it to shape (1, 3, 224, 224)
     path = str(img_path) # to handle pathlib
-    img = imread(path, mode='RGB')
-    img = imresize(img, (224, 224), interp='bicubic')
+    img = imread(path)
+    img = rgba2rgb(img)
+    img = imresize(img, (224, 224))
+    img = img.astype('float32')
     img = img.transpose(2, 0, 1)[None]
 
     # use ImageNet statistics to transform the data
     mean = np.array([0.485, 0.456, 0.406]).reshape(1, 3, 1, 1)
     std = np.array([0.229, 0.224, 0.224]).reshape(1, 3, 1, 1)
-    img_tensor = torch.FloatTensor((img / 255 - mean) / std)
+    img = (img - mean) / std
+    img_tensor = torch.FloatTensor(img).to('cuda')
+
+
+
+
+
 
     # push to the GPU if possible
     if torch.cuda.is_available():
